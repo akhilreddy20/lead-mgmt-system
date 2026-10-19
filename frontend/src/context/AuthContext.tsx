@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import api from '../lib/api';
 import { User } from '../types';
 
-interface AuthCtx { user: User | null; login: (email: string, password: string) => Promise<void>; register: (name: string, email: string, password: string, role: string) => Promise<void>; logout: () => void; loading: boolean; }
+interface AuthCtx { user: User | null; login: (email: string, password: string) => Promise<void>; register: (name: string, email: string, password: string, role: string) => Promise<{ pendingApproval: boolean; message?: string }>; logout: () => void; loading: boolean; }
 
 const AuthContext = createContext<AuthCtx>(null!);
 export const useAuth = () => useContext(AuthContext);
@@ -22,8 +22,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', data.token); setUser(data.user);
   };
   const register = async (name: string, email: string, password: string, role: string) => {
-    const { data } = await api.post('/auth/register', { name, email, password, role });
+    const { data, status } = await api.post('/auth/register', { name, email, password, role });
+    // 202 = account created but awaiting admin activation (no token issued).
+    if (status === 202 || !data.token) return { pendingApproval: true, message: data.message };
     localStorage.setItem('token', data.token); setUser(data.user);
+    return { pendingApproval: false };
   };
   const logout = () => { localStorage.removeItem('token'); setUser(null); };
 
