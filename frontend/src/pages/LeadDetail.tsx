@@ -16,7 +16,8 @@ const statusColors: Record<string, string> = {
 const TRANSITIONS: Record<string, string[]> = {
   new: ['contacted', 'lost'], contacted: ['interested', 'follow_up', 'lost'], interested: ['qualified', 'follow_up', 'lost'],
   follow_up: ['contacted', 'interested', 'qualified', 'lost'], qualified: ['counsellor_assigned', 'lost'],
-  counsellor_assigned: ['converted', 'lost', 'follow_up'], escalated: ['counsellor_assigned', 'lost'],
+  // 'converted' is done via the Convert button (requires a verified payment)
+  counsellor_assigned: ['lost', 'follow_up'], escalated: ['counsellor_assigned', 'lost'],
 };
 
 export default function LeadDetail() {
@@ -33,7 +34,9 @@ export default function LeadDetail() {
   const { data: activity } = useQuery<ActivityLogEntry[]>({ queryKey: ['activity', id], queryFn: () => api.get(`/leads/${id}/activity`).then(r => r.data) });
   const { data: payments } = useQuery({ queryKey: ['payments', id], queryFn: () => api.get(`/payments/lead/${id}`).then(r => r.data) });
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => api.get('/users').then(r => r.data), enabled: user?.role === 'admin' || user?.role === 'counsellor' });
-  const counsellors = users?.filter((u: any) => u.role === 'counsellor') || [];
+  // Telecallers can't list all users, so they get a counsellor-only directory.
+  const { data: counsellorDirectory } = useQuery({ queryKey: ['counsellors'], queryFn: () => api.get('/users/counsellors').then(r => r.data), enabled: user?.role === 'telecaller' });
+  const counsellors = (user?.role === 'telecaller' ? counsellorDirectory : users?.filter((u: any) => u.role === 'counsellor')) || [];
   const allUsers = users || [];
 
   const refresh = () => { qc.invalidateQueries({ queryKey: ['lead', id] }); qc.invalidateQueries({ queryKey: ['activity', id] }); qc.invalidateQueries({ queryKey: ['payments', id] }); };
@@ -74,6 +77,16 @@ export default function LeadDetail() {
   const verifyPayment = async (paymentId: string, status: string) => {
     await api.patch(`/payments/${paymentId}/verify`, { status });
     toast.success(`Payment ${status}`); refresh();
+  };
+
+  // Proofs require the auth header, so fetch as a blob instead of linking directly.
+  const viewProof = async (proofUrl: string) => {
+    try {
+      const res = await api.get(proofUrl.replace(/^\/api/, ''), { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch { toast.error('Could not load proof'); }
   };
 
   const convertToStudent = async () => {
@@ -188,7 +201,7 @@ export default function LeadDetail() {
                 </div>
               )}
             </div>
-            {p.proofUrl && <a href={p.proofUrl} target="_blank" className="text-brand-600 text-xs mt-1 inline-block">View Proof</a>}
+            {p.proofUrl && <button onClick={() => viewProof(p.proofUrl)} className="text-brand-600 text-xs mt-1 inline-block">View Proof</button>}
           </div>
         ))}
         {!lead.isLocked && (

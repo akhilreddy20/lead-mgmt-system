@@ -10,6 +10,9 @@ const userSchema = new mongoose.Schema({
   currentLeadCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
+// Used by the atomic least-loaded assignment query.
+userSchema.index({ role: 1, isActive: 1, currentLeadCount: 1 });
+
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 10);

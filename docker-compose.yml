@@ -1,0 +1,19 @@
+# Local stack: MongoDB + API.  Usage: docker compose up --build
+services:
+  mongo:
+    image: mongo:7
+    ports: ["27017:27017"]
+    volumes: [mongo-data:/data/db]
+  api:
+    build: ./backend
+    ports: ["5000:5000"]
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/lead_mgmt
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret}
+      LEAD_API_KEY: ${LEAD_API_KEY:-dev-only-key}
+      CORS_ORIGINS: http://localhost:5173
+    volumes: [uploads:/app/uploads]
+    depends_on: [mongo]
+volumes:
+  mongo-data:
+  uploads:

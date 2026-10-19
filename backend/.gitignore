@@ -25,3 +25,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Payment proofs (private user uploads)
+uploads/

@@ -42,6 +42,11 @@ const leadSchema = new mongoose.Schema({
   version: { type: Number, default: 0 },
 }, { timestamps: true });
 
+// Supports the per-user lead lists and the overdue filter.
+leadSchema.index({ assignedTo: 1, createdAt: -1 });
+leadSchema.index({ 'escalation.escalatedTo': 1 });
+leadSchema.index({ status: 1, nextFollowUp: 1 });
+
 leadSchema.statics.VALID_TRANSITIONS = VALID_TRANSITIONS;
 
 module.exports = mongoose.model('Lead', leadSchema);
